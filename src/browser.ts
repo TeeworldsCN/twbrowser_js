@@ -1,6 +1,7 @@
 import fs from 'fs';
 import spawn from 'child_process';
 import _ from 'lodash';
+import geoip from 'geoip-lite';
 
 interface RawServerState {
   ip?: string;
@@ -15,11 +16,11 @@ interface RawServerState {
       name: string;
     };
     version: string;
-    clients: PlayerState[];
+    clients: RawPlayerState[];
   };
 }
 
-interface PlayerState {
+interface RawPlayerState {
   name: string;
   clan: string;
   country: number;
@@ -28,6 +29,9 @@ interface PlayerState {
 }
 
 interface ServerState {
+  ip: string;
+  port: number;
+
   protocols: string[];
   max_clients: number;
   max_players: number;
@@ -38,11 +42,23 @@ interface ServerState {
   version: string;
   clients: PlayerState[];
 
+  locale: string;
+  num_clients: number;
+  num_players: number;
+  num_spectators: number;
   reachable: boolean;
   lastSeen: number;
 }
 
-const isConnecting = (player: PlayerState) => {
+interface PlayerState {
+  name: string;
+  clan: string;
+  flag: number;
+  score: number;
+  is_player: boolean;
+}
+
+const isConnecting = (player: PlayerState | RawPlayerState) => {
   return (
     player.name == '(connecting)' && (!player.is_player || (player.clan == '' && player.score == 0))
   );
@@ -76,16 +92,36 @@ export class TwBrowser {
 
     // update infos
     for (const server of data) {
-      const ip = server.addresses[0].match(/:\/\/(.*)/)[1];
+      const address = server.addresses[0].match(/:\/\/(.*)/)[1];
+      const ipParts = address.split(':');
+
+      const playerCount = _.countBy(server.info.clients, p => {
+        if (isConnecting(p)) return 'connecting';
+        if (p.is_player) return 'player';
+        return 'spectator';
+      });
+
+      const oldState = this.db[address];
+
       const newState: ServerState = {
+        ip: oldState?.ip || ipParts[0],
+        port: oldState?.port || parseInt(ipParts[1]),
+
         protocols: server.addresses.map(uri => uri.match(/(.*):\/\//)[1]),
-        ..._.omit(server.info, 'map'),
+        ..._.omit(server.info, 'map', 'clients'),
         map: server.info.map.name,
+        clients: server.info.clients.map(c => ({ ..._.omit(c, 'country'), flag: c.country })),
+
+        locale: oldState?.locale || geoip.lookup(ipParts[0])?.country || 'ZZ',
+
+        num_clients: server.info.clients.length,
+        num_players: playerCount['player'] || 0,
+        num_spectators: playerCount['spectator'] || 0,
+
         reachable: true,
         lastSeen: now,
       };
 
-      const oldState = this.db[ip];
       const joinedClients = [];
       // const leftClients = [];
       if (!oldState) {
@@ -106,7 +142,7 @@ export class TwBrowser {
         //   )
         // );
       }
-      this.db[ip] = newState;
+      this.db[address] = newState;
 
       for (let client of joinedClients) {
         if (client.name == '(connecting)' && !isConnecting(client)) {
@@ -148,6 +184,10 @@ export class TwBrowser {
         });
       }
     );
+  }
+
+  public findPlayer(query: Partial<PlayerState>, hook?: string) {
+    return _.flatten(_.map(_.values(this.db), s => _.filter(s.clients, _.matches(query))));
   }
 
   public get servers() {
