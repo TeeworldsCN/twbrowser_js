@@ -186,8 +186,23 @@ export class TwBrowser {
     );
   }
 
-  public findPlayer(query: Partial<PlayerState>, hook?: string) {
-    return _.flatten(_.map(_.values(this.db), s => _.filter(s.clients, _.matches(query))));
+  public findPlayer(query: Partial<PlayerState>, withServers: boolean) {
+    return _.flatten(
+      _.map(_.values(this.db), s =>
+        _.filter(s.clients, _.matches(query)).map(p => ({
+          ...p,
+          server: withServers ? _.omit(s, 'clients', 'reachable', 'lastSeen') : undefined,
+        }))
+      )
+    );
+  }
+
+  public findServer(query: Partial<ServerState>, withClients: boolean) {
+    return _.mapValues(_.pickBy(this.db, _.matches(query)), s =>
+      withClients
+        ? _.omit(s, 'reachable', 'lastSeen')
+        : _.omit(s, 'reachable', 'lastSeen', 'clients')
+    );
   }
 
   public get servers() {

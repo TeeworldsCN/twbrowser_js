@@ -23,10 +23,10 @@ const SERVER_TYPES: any = {
 };
 
 app.get('/', (request, reply) => {
-  const query = request.query as any;
-  const servers = _.pickBy(
-    browser.servers,
-    _.matches(_.mapValues(query, (v, k) => (SERVER_TYPES[k] ? SERVER_TYPES[k](v) : v)))
+  const query = _.omit(request.query as any, 'detail');
+  const servers = browser.findServer(
+    _.mapValues(query, (v, k) => (SERVER_TYPES[k] ? SERVER_TYPES[k](v) : v)),
+    bool((request.query as any).detail)
   );
   reply.send({
     num_servers: _.size(servers),
@@ -35,10 +35,10 @@ app.get('/', (request, reply) => {
 });
 
 app.get('/list', (request, reply) => {
-  const query = request.query as any;
-  const servers = _.pickBy(
-    browser.servers,
-    _.matches(_.mapValues(query, (v, k) => (SERVER_TYPES[k] ? SERVER_TYPES[k](v) : v)))
+  const query = _.omit(request.query as any, 'detail');
+  const servers = browser.findServer(
+    _.mapValues(query, (v, k) => (SERVER_TYPES[k] ? SERVER_TYPES[k](v) : v)),
+    bool((request.query as any).detail)
   );
   reply.send({ servers: _.values(servers) });
 });
@@ -49,9 +49,11 @@ const PLAYER_TYPES: any = {
 };
 
 app.get('/players', (request, reply) => {
-  const query = _.omit(request.query as any, 'hook');
+  const query = _.omit(request.query as any, 'detail');
+
   const players = browser.findPlayer(
-    _.mapValues(query, (v, k) => (PLAYER_TYPES[k] ? PLAYER_TYPES[k](v) : v))
+    _.mapValues(query, (v, k) => (PLAYER_TYPES[k] ? PLAYER_TYPES[k](v) : v)),
+    bool((request.query as any).detail)
   );
   reply.send({ players });
 });
