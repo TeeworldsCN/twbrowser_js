@@ -13,6 +13,7 @@ browser.start();
 const app = fastify({ logger: false });
 
 const SERVER_TYPES: any = {
+  port: int,
   max_clients: int,
   max_players: int,
   passworded: bool,
