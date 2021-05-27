@@ -14,7 +14,7 @@
     "fastify": "^3.13.0",
     "geoip-lite": "^1.4.2",
     "lowdb": "^1.0.0",
-    "redis": "^3.0.2",
+    "redis": "^3.1.2",
     "typescript": "^4.2.2"
   },
   "name": "js_statbrowse",

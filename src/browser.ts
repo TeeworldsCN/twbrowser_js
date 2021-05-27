@@ -160,12 +160,18 @@ export class TwBrowser {
 
   public start() {
     if (process.env.TWSTATS_EXEC) {
-      this.process = spawn.spawn(process.env.TWSTATS_EXEC, [
+      const args = [
         '-f',
         'json',
         '--filename',
         process.env.TWSTATS_JSON,
-      ]);
+      ];
+
+      if (process.env.TWSTATS_LOCATIONS)
+      {
+        args.push("--locations", process.env.TWSTATS_LOCATIONS);
+      }
+      this.process = spawn.spawn(process.env.TWSTATS_EXEC, args);
     }
 
     fs.watchFile(
