@@ -160,16 +160,10 @@ export class TwBrowser {
 
   public start() {
     if (process.env.TWSTATS_EXEC) {
-      const args = [
-        '-f',
-        'json',
-        '--filename',
-        process.env.TWSTATS_JSON,
-      ];
+      const args = ['-f', 'json', '--filename', process.env.TWSTATS_JSON];
 
-      if (process.env.TWSTATS_LOCATIONS)
-      {
-        args.push("--locations", process.env.TWSTATS_LOCATIONS);
+      if (process.env.TWSTATS_LOCATIONS) {
+        args.push('--locations', process.env.TWSTATS_LOCATIONS);
       }
       this.process = spawn.spawn(process.env.TWSTATS_EXEC, args);
     }
@@ -185,6 +179,13 @@ export class TwBrowser {
           try {
             this.updateDB(JSON.parse(data).servers || []);
           } catch (err) {
+            console.error(err);
+          }
+
+          try {
+            global.gc();
+          } catch (err) {
+            console.error("no gc");
             console.error(err);
           }
         });
