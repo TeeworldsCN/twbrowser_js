@@ -1,7 +1,6 @@
 import fs from 'fs';
 import spawn from 'child_process';
 import _ from 'lodash';
-import geoip from 'geoip-lite';
 
 interface RawServerState {
   ip?: string;
