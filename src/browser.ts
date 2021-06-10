@@ -141,6 +141,8 @@ export class TwBrowser {
           `stats_browser is exiting with code: ${code}. attempting to restart in 5 seconds`
         );
         setTimeout(() => {
+          // remove the outdated file if stats_browser is down
+          fs.unlinkSync(process.env.TWSTATS_JSON);
           fs.unwatchFile(process.env.TWSTATS_JSON);
           this.start();
         }, 5000);
