@@ -6,6 +6,7 @@ import geoip from 'geoip-lite';
 interface RawServerState {
   ip?: string;
   addresses: string[];
+  location?: string;
   info: {
     max_clients: number;
     max_players: number;
@@ -112,7 +113,7 @@ export class TwBrowser {
         map: server.info.map.name,
         clients: server.info.clients.map(c => ({ ..._.omit(c, 'country'), flag: c.country })),
 
-        locale: oldState?.locale || geoip.lookup(ipParts[0])?.country || 'ZZ',
+        locale: oldState?.locale || server.location || 'ZZZ',
 
         num_clients: server.info.clients.length,
         num_players: playerCount['player'] || 0,
@@ -122,39 +123,7 @@ export class TwBrowser {
         lastSeen: now,
       };
 
-      const joinedClients = [];
-      // const leftClients = [];
-      if (!oldState) {
-        joinedClients.push(...newState.clients);
-      } else {
-        joinedClients.push(
-          ..._.differenceWith(
-            newState.clients,
-            oldState.clients,
-            (a, b) => a.name == b.name && a.clan == b.clan
-          )
-        );
-        // leftClients.push(
-        //   ..._.differenceWith(
-        //     oldState.clients,
-        //     newState.clients,
-        //     (a, b) => a.name == b.name && a.clan == b.clan
-        //   )
-        // );
-      }
       this.db[address] = newState;
-
-      for (let client of joinedClients) {
-        if (client.name == '(connecting)' && !isConnecting(client)) {
-          // TODO: onPlayerAppear
-        }
-      }
-
-      // for (let client of leftClients) {
-      //   if (client.name == '(connecting)' && !isConnecting(client)) {
-      //     // MAYBE: onPlayerDisappear
-      //   }
-      // }
     }
   }
 
@@ -166,26 +135,29 @@ export class TwBrowser {
         args.push('--locations', process.env.TWSTATS_LOCATIONS);
       }
       this.process = spawn.spawn(process.env.TWSTATS_EXEC, args);
+
+      this.process.on('exit', code => {
+        console.warn(
+          `stats_browser is exiting with code: ${code}. attempting to restart in 5 seconds`
+        );
+        setTimeout(() => {
+          fs.unwatchFile(process.env.TWSTATS_JSON);
+          this.start();
+        }, 5000);
+      });
     }
 
     fs.watchFile(
       process.env.TWSTATS_JSON,
       {
         persistent: true,
-        interval: 500,
+        interval: 2000,
       },
       (curr, prev) => {
         fs.readFile(process.env.TWSTATS_JSON, { encoding: 'utf-8' }, (err, data) => {
           try {
             this.updateDB(JSON.parse(data).servers || []);
           } catch (err) {
-            console.error(err);
-          }
-
-          try {
-            global.gc();
-          } catch (err) {
-            console.error("no gc");
             console.error(err);
           }
         });
